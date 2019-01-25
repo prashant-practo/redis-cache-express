@@ -38,10 +38,10 @@ function cache_redis(options) {
   var create_key = function(req, options) {
     var url = req.url;
     var invalidate = !!options.invalidate ? options.invalidate : false;
-    var rx = new RegExp('[?&]?' + invalidate.param_key + '=' + invalidate.param_value);
 
     if(!!invalidate) {
-      url = url.replace(rx, '');
+      url = url.replace(invalidate.param_key + '=' + invalidate.param_value, '');
+      url = url.replace(/(\&|\?)$/, '');
     }
 
     if(options.include_host)
@@ -127,6 +127,9 @@ function cache_redis(options) {
             }
           }
 
+          if(_options.with_locals) {
+            body = res.locals[_options.locals_key];
+          }
           if(compress) {
             let timerStart = process.hrtime();
             zlib.deflate(body, function (err, compressed_body) {
@@ -193,6 +196,11 @@ function cache_redis(options) {
           compressionPromise.then((response) => {
             if(typeof(_options.send) !== 'undefined' && _options.send === false) {
               res.body = response;
+              next();
+              return;
+            }
+            if (_options.with_locals) {
+              res.locals[_options.locals_key] = response;
               next();
               return;
             }
